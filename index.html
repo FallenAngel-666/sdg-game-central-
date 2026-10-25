@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Game Station - SDG Analytics & Student Records</title>
+    <meta name="description" content="Central Game Station for tracking student participants, marks, analytics, and exporting reports for the UN Sustainable Development Goals matching game.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SheetJS for real Excel (.xlsx) file generation -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Station Top Bar -->
+        <header class="station-header">
+            <div class="station-title-group">
+                <div class="logo-area">
+                    <span class="sdg-wheel-icon"></span>
+                    <h1>Central Game Station</h1>
+                </div>
+                <p>Centralized Records, Real-time Analytics & Participant Scorecards for the UN SDG Challenge.</p>
+            </div>
+            <div class="station-actions">
+                <button id="btn-export-excel" class="btn btn-primary" title="Export full participants record as Microsoft Excel (.xlsx)">
+                    📥 Download Excel
+                </button>
+                <button id="btn-export-csv" class="btn btn-secondary" title="Export as CSV">
+                    📄 Download CSV
+                </button>
+                <button id="btn-config-db" class="btn btn-secondary" title="Configure Cloud Database Sync">
+                    ⚙️ Cloud DB Settings
+                </button>
+                <button id="btn-clear-all" class="btn btn-danger" title="Clear all stored student entries">
+                    🗑️ Clear Entries
+                </button>
+            </div>
+        </header>
+
+        <!-- Database Connection Status Bar -->
+        <div id="db-status-bar" class="db-status-bar">
+            <div class="db-status-info">
+                <span id="db-status-indicator" class="status-indicator"></span>
+                <span id="db-status-text">Checking Database connection...</span>
+            </div>
+            <button id="btn-quick-config" class="btn-link">Change Cloud Database URL ⚙️</button>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <section class="kpi-grid">
+            <div class="kpi-card" style="--card-accent: #26bde2;">
+                <div class="kpi-title">
+                    <span>Total Participants</span>
+                    <span>👥</span>
+                </div>
+                <div class="kpi-val" id="kpi-total-participants">0</div>
+                <div class="kpi-subtitle">Students completed the game</div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: #10b981;">
+                <div class="kpi-title">
+                    <span>Average Marks</span>
+                    <span>📊</span>
+                </div>
+                <div class="kpi-val" id="kpi-avg-score">0 <span style="font-size: 1rem; color: var(--text-muted);">/ 34</span></div>
+                <div class="kpi-subtitle" id="kpi-avg-accuracy">0% avg accuracy</div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: #fcc30b;">
+                <div class="kpi-title">
+                    <span>SDG Champions (34/34)</span>
+                    <span>🏆</span>
+                </div>
+                <div class="kpi-val" id="kpi-top-scorers">0</div>
+                <div class="kpi-subtitle">Perfect score achievers</div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: #fd6925;">
+                <div class="kpi-title">
+                    <span>Average Time Taken</span>
+                    <span>⏱️</span>
+                </div>
+                <div class="kpi-val" id="kpi-avg-time">00:00</div>
+                <div class="kpi-subtitle">Speed of completion</div>
+            </div>
+        </section>
+
+        <!-- Controls: Search, Filters & Bulk Actions -->
+        <div class="control-bar">
+            <div class="search-filter-group">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="station-search-input" placeholder="Search by student name, roll number, or class...">
+                </div>
+                <select id="station-class-filter" class="filter-select">
+                    <option value="ALL">All Classes & Grades</option>
+                </select>
+                <select id="station-sort-filter" class="filter-select">
+                    <option value="NEWEST">Sort: Newest First</option>
+                    <option value="SCORE_HIGH">Sort: Highest Marks</option>
+                    <option value="SCORE_LOW">Sort: Lowest Marks</option>
+                    <option value="NAME_AZ">Sort: Name (A-Z)</option>
+                    <option value="TIME_FAST">Sort: Fastest Time</option>
+                </select>
+            </div>
+            <button id="btn-refresh" class="btn btn-secondary" title="Reload entries from database">
+                🔄 Refresh
+            </button>
+        </div>
+
+        <!-- Participants Data Table -->
+        <main class="table-container">
+            <div class="table-responsive">
+                <table class="records-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Roll No</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th>Section</th>
+                            <th>Marks</th>
+                            <th>Accuracy</th>
+                            <th>Time</th>
+                            <th>Submission Date</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-table-body">
+                        <!-- Dynamic Records Injected Here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="table-empty-state" class="empty-state" style="display: none;">
+                <div class="empty-icon">📂</div>
+                <div class="empty-title">No Participant Records Yet</div>
+                <p>When students submit their SDG matching results from the Game Website, their scores and details will appear here automatically.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="view-details-modal" class="modal-overlay" aria-hidden="true" role="dialog">
+        <div class="modal-card details-modal-card">
+            <div class="details-header">
+                <div class="student-profile">
+                    <h2><span id="detail-student-name">Student Name</span></h2>
+                    <div class="student-meta">
+                        <span><strong>Roll No:</strong> <span id="detail-student-roll">-</span></span>
+                        <span><strong>Class:</strong> <span id="detail-student-class">-</span></span>
+                        <span><strong>Section:</strong> <span id="detail-student-section">-</span></span>
+                        <span><strong>Date:</strong> <span id="detail-student-date">-</span></span>
+                    </div>
+                </div>
+                <button class="close-modal-btn" id="btn-close-details" title="Close Details Modal">&times;</button>
+            </div>
+
+            <div class="modal-stats" style="margin-bottom: 1.5rem;">
+                <div class="modal-stat-item">
+                    <div class="modal-stat-val" id="detail-score">0 / 34</div>
+                    <div class="modal-stat-lbl">Final Marks</div>
+                </div>
+                <div class="modal-stat-item">
+                    <div class="modal-stat-val" id="detail-accuracy">0%</div>
+                    <div class="modal-stat-lbl">Accuracy</div>
+                </div>
+                <div class="modal-stat-item">
+                    <div class="modal-stat-val" id="detail-time">00:00</div>
+                    <div class="modal-stat-lbl">Time Taken</div>
+                </div>
+            </div>
+
+            <h3 style="font-family: var(--font-title); font-size: 1.15rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+                17 Goals Response Breakdown:
+            </h3>
+
+            <!-- 17-Goal Grid Breakdown -->
+            <div id="detail-goals-breakdown" class="details-grid">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloud DB Configuration Modal -->
+    <div id="config-db-modal" class="modal-overlay" aria-hidden="true" role="dialog">
+        <div class="modal-card" style="max-width: 580px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; width: 100%;">
+                <h2 style="font-size: 1.5rem; margin: 0;">⚙️ Cloud Database Setup</h2>
+                <button class="close-modal-btn" id="btn-close-config">&times;</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">
+                To connect the Game Website and this Central Game Station across different devices, enter your <strong>Firebase Realtime Database URL</strong> below:
+            </p>
+
+            <div class="input-group">
+                <label for="input-db-url">Firebase Database URL</label>
+                <input type="text" id="input-db-url" placeholder="https://your-project-default-rtdb.firebaseio.com">
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+                <strong style="color: var(--text-primary);">How to get your free database in 2 minutes:</strong>
+                <ol style="margin-left: 1.2rem; margin-top: 0.5rem; line-height: 1.6;">
+                    <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color: var(--text-accent);">console.firebase.google.com</a> (Free Google account).</li>
+                    <li>Click <strong>Add Project</strong> &gt; Name it (e.g. <code>sdg-tracker</code>).</li>
+                    <li>Click <strong>Build &gt; Realtime Database &gt; Create Database</strong>.</li>
+                    <li>Select <strong>Start in test mode</strong> (enables instant reading/writing).</li>
+                    <li>Copy your database URL and paste it above & in the Game website!</li>
+                </ol>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="btn-save-db-config" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                    Save & Connect Database
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notice -->
+    <div id="toast-notice" class="toast-notice"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
