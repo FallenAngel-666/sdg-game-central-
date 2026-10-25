@@ -12,7 +12,7 @@ const CONFIG_KEY = "sdg_central_station_db_url";
 const LOCAL_STORAGE_KEY = "sdg_central_game_station_records";
 
 // Default Cloud Database URL (Matches Website 1)
-const DEFAULT_FIREBASE_URL = "https://sdg-central-station-default-rtdb.firebaseio.com";
+const DEFAULT_FIREBASE_URL = "https://sdg-tracker-56e77-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 // DOM Elements
 const tableBody = document.getElementById("records-table-body");
@@ -72,7 +72,10 @@ async function fetchRecords(isAutoPoll = false) {
     const dbUrl = getDbUrl();
     let cloudSuccess = false;
 
-    if (dbUrl && !dbUrl.includes("PASTE_YOUR_FIREBASE_URL_HERE")) {
+    if (!dbUrl) {
+        dbStatusIndicator.className = "status-indicator";
+        dbStatusText.innerHTML = "⚠️ <strong>Cloud Database not connected yet:</strong> Click <a href='javascript:void(0)' onclick='openDbConfig()' style='color:var(--text-accent); text-decoration:underline;'>here</a> to paste your free Firebase Database URL.";
+    } else {
         try {
             const resp = await fetch(`${dbUrl}/participants.json`, { cache: "no-store" });
             if (resp.ok) {
@@ -91,14 +94,14 @@ async function fetchRecords(isAutoPoll = false) {
 
                 // Update connection status
                 dbStatusIndicator.className = "status-indicator connected";
-                dbStatusText.textContent = `🟢 Connected to Cloud Database (${cachedRecords.length} records loaded)`;
+                dbStatusText.textContent = `🟢 Connected to Cloud Database (${cachedRecords.length} records synced)`;
             } else {
                 throw new Error("HTTP " + resp.status);
             }
         } catch (err) {
             console.warn("Cloud DB fetch notice:", err);
-            dbStatusIndicator.className = "status-indicator";
-            dbStatusText.textContent = "🟡 Offline / Using Local Storage cache. Click 'Change Cloud Database URL' to configure.";
+            dbStatusIndicator.className = "status-indicator error";
+            dbStatusText.innerHTML = "❌ <strong>Database connection error:</strong> Please check your Firebase Database URL or permissions. Click <a href='javascript:void(0)' onclick='openDbConfig()' style='color:var(--text-accent); text-decoration:underline;'>Settings</a>.";
         }
     }
 
